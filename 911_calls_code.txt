@@ -1,0 +1,96 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import folium
+#Reading CSV file
+df = pd.read_csv('911.csv')
+
+#Check for missing values
+df.isna().sum()
+
+#Checks on the columns 'zip'
+df['zip'].unique()
+df['zip'].mode()
+
+# Filling the missing value rows with mode value
+df['zip'] = df['zip'].fillna(19401.0)
+df.isna().sum()
+df['zip'].count()
+
+#ANS:1 
+def zipcode_check(values):
+    for each in values:
+        if each in df['zip'].value_counts().head(10):
+            print('Yes! zipcodes are present')
+        else:
+            print('Zip codes are not there')
+            
+
+values = [19446,19090]
+res = zipcode_check(values)
+
+#ANS:2
+def twp_check(twp_val):
+    for each in twp_val:
+        if each not in df['twp'].value_counts().head(4):
+            pre_list = []
+            pre_list.append(each)
+            print(pre_list)
+    return True
+
+twp_val = ['LOWER POTTSGROAVE','NORRISTOWN','HORSHAM','ABINGTON']
+res = twp_check(twp_val)
+
+#ANS:3
+df[['type','reason']] = df.title.str.split(pat = ':',expand = True)
+df['type'].value_counts()
+
+#ANS:4
+gr = df.groupby('type')
+for each, subset in gr:
+    total_count = len(subset)
+    print(each,total_count)
+    plt.barh(each,total_count)
+    plt.xlim(30000,150000)
+    
+
+#ANS:5
+df['timeStamp'] = pd.to_datetime(df.timeStamp,format='%d-%m-%y %H.%M')
+#df['date'] = df['timeStamp'].dt.date
+df['weekday']=df.timeStamp.dt.weekday_name
+gr1 = df.groupby(['type','weekday'])
+gr1 = gr1.get_group(('EMS','Friday'))
+print(gr1['weekday'].value_counts())
+
+
+#ANS:6 countplot for day of week and hue based on reason column. which day traffic is lowest
+df['weekday'].value_counts()
+#df.drop('date',axis=1)
+sns.set(style = 'darkgrid')
+sns.countplot(x = 'weekday',hue ='type', saturation = 2.9,data = df)
+plt.show()
+
+#ANS:7 countplot month wise  and which month saw highest calls for fire
+df['month']=df.timeStamp.dt.strftime('%B')
+gr2 = df.groupby(['type','month'])
+#df['month'].value_counts()
+sns.countplot(y = 'month', hue = 'type', data = df)
+
+#ANS:8
+gr3 = df.groupby('type')
+gr3 = gr3.get_group('Fire')
+lat = gr3['lat']
+lng = gr3['lng']
+#gr3.first()
+#gr3['type'].value_counts()
+
+mp = folium.Map(location = [32.58,-99.09],zoom_start = 6,titles = 'Mapbox')
+fg_tz = folium.FeatureGroup(name = 'Traffic Zones')
+for lt,lg in zip(lat,lng):
+    fg_tz = fg_tz.add_child(folium.Marker(location =[lt,lg],popup = 'Fire',icon = folium.Icon(color='red')))
+#print(len(lat))
+mp.add_child(fg_tz)
+mp.add_child(folium.LayerControl())
+mp.save('low_traffic1.html')
+#print('complete map')
